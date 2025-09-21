@@ -14,7 +14,7 @@ import {
   type Exoplanet,
 } from "@/lib/exoplanet-data"
 import { searchExoplanets as searchExoplanetsAPI, getRandomExoplanets, getExoplanetStats } from "@/lib/exoplanet-service"
-import { ExoplanetStatsResponse } from "@/lib/api"
+import { ExoplanetStatsResponse, api } from "@/lib/api"
 
 export function PlanetSearch() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -33,21 +33,11 @@ export function PlanetSearch() {
         setLoading(true)
         setError(null)
         
-        // Direct API calls instead of using the service
-        const [planetsResponse, statsResponse] = await Promise.all([
-          fetch('http://localhost:8000/exoplanets/random?limit=200'),
-          fetch('http://localhost:8000/exoplanets/stats')
+        // Use API client for environment-aware calls
+        const [planetsData, statsData] = await Promise.all([
+          api.getRandomExoplanets(200),
+          api.getExoplanetStats()
         ])
-        
-        if (!planetsResponse.ok) {
-          throw new Error(`Planets API error: ${planetsResponse.status}`)
-        }
-        if (!statsResponse.ok) {
-          throw new Error(`Stats API error: ${statsResponse.status}`)
-        }
-        
-        const planetsData = await planetsResponse.json()
-        const statsData = await statsResponse.json()
         
         console.log('Loaded planets:', planetsData.length, planetsData)
         console.log('Loaded stats:', statsData)
@@ -89,9 +79,7 @@ export function PlanetSearch() {
       if (!searchQuery.trim()) {
         // Load random planets when no search query
         try {
-          const response = await fetch('http://localhost:8000/exoplanets/random?limit=200')
-          if (!response.ok) throw new Error(`API error: ${response.status}`)
-          const planetsData = await response.json()
+          const planetsData = await api.getRandomExoplanets(200)
           
           const convertedPlanets = planetsData.map((planet: any) => ({
             id: planet.pl_name.toLowerCase().replace(/\s+/g, '-'),
@@ -117,9 +105,7 @@ export function PlanetSearch() {
 
       try {
         setLoading(true)
-        const response = await fetch(`http://localhost:8000/exoplanets?q=${encodeURIComponent(searchQuery)}&limit=200`)
-        if (!response.ok) throw new Error(`Search API error: ${response.status}`)
-        const searchData = await response.json()
+        const searchData = await api.searchExoplanets(searchQuery, 200)
         
         const convertedPlanets = searchData.exoplanets.map((planet: any) => ({
           id: planet.pl_name.toLowerCase().replace(/\s+/g, '-'),

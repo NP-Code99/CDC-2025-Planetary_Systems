@@ -2,7 +2,15 @@
  * Typed API client for GravityFit Exo backend
  */
 
-const API_BASE = 'http://localhost:8000'
+import { 
+  getRandomStaticPlanets, 
+  searchStaticPlanets, 
+  STATIC_STATS,
+  type StaticExoplanet,
+  type StaticStats 
+} from './static-data'
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
 
 // Types matching the backend API
 export interface PredictRequest {
@@ -112,25 +120,30 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
   const url = `${API_BASE}${endpoint}`
   console.log('API call to:', url)
   
-  const response = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    ...options,
-  })
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    })
 
-  console.log('API response status:', response.status)
+    console.log('API response status:', response.status)
 
-  if (!response.ok) {
-    const errorText = await response.text()
-    console.error('API error:', response.status, errorText)
-    throw new ApiError(response.status, errorText)
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('API error:', response.status, errorText)
+      throw new ApiError(response.status, errorText)
+    }
+
+    const data = await response.json()
+    console.log('API response data:', data)
+    return data
+  } catch (error) {
+    console.warn('API call failed, this is expected in production without a deployed backend:', error)
+    throw error
   }
-
-  const data = await response.json()
-  console.log('API response data:', data)
-  return data
 }
 
 export const api = {
@@ -165,8 +178,18 @@ export const api = {
    * Search exoplanets
    */
   async searchExoplanets(query: string = '', limit: number = 20): Promise<ExoplanetSearchResponse> {
-    const params = new URLSearchParams({ q: query, limit: limit.toString() })
-    return fetchApi<ExoplanetSearchResponse>(`/exoplanets?${params}`)
+    try {
+      const params = new URLSearchParams({ q: query, limit: limit.toString() })
+      return await fetchApi<ExoplanetSearchResponse>(`/exoplanets?${params}`)
+    } catch (error) {
+      console.warn('Using static fallback data for search')
+      const staticPlanets = searchStaticPlanets(query, limit)
+      return {
+        exoplanets: staticPlanets as Exoplanet[],
+        total: staticPlanets.length,
+        query: query
+      }
+    }
   },
 
   /**
@@ -180,15 +203,25 @@ export const api = {
    * Get exoplanet dataset statistics
    */
   async getExoplanetStats(): Promise<ExoplanetStatsResponse> {
-    return fetchApi<ExoplanetStatsResponse>('/exoplanets/stats')
+    try {
+      return await fetchApi<ExoplanetStatsResponse>('/exoplanets/stats')
+    } catch (error) {
+      console.warn('Using static fallback data for stats')
+      return STATIC_STATS as ExoplanetStatsResponse
+    }
   },
 
   /**
    * Get random exoplanets
    */
   async getRandomExoplanets(limit: number = 5): Promise<Exoplanet[]> {
-    const params = new URLSearchParams({ limit: limit.toString() })
-    return fetchApi<Exoplanet[]>(`/exoplanets/random?${params}`)
+    try {
+      const params = new URLSearchParams({ limit: limit.toString() })
+      return await fetchApi<Exoplanet[]>(`/exoplanets/random?${params}`)
+    } catch (error) {
+      console.warn('Using static fallback data for random planets')
+      return getRandomStaticPlanets(limit) as Exoplanet[]
+    }
   },
 }
 
