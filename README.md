@@ -146,6 +146,16 @@ The backend implements the core calculations from the Planetary Systems.ipynb no
 └── README.md               # This file
 ```
 
+## Deployment
+
+The project is ready for deployment! See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
+
+**Quick Deploy:**
+1. Test deployment readiness: `./deploy.sh`
+2. Deploy backend to Railway/Render
+3. Deploy frontend to Vercel (set Root Directory to `frontend`)
+4. Set environment variables
+
 ## Contributing
 
 1. Fork the repository
