@@ -15,66 +15,96 @@ Transform NASA's Exoplanet Archive into personalized fitness training programs. 
 - **7-Day Training Plans**: Complete weekly schedules with device setpoints and safety notes
 - **Real-time API Integration**: Backend-powered calculations with fallback to frontend logic
 
+## 🚀 Quick Start (For Judges)
+
+**One-Command Setup:**
+```bash
+# Clone and start both servers
+git clone <repository-url>
+cd CDC-2025-Planetary_Systems
+chmod +x start-dev.sh
+./start-dev.sh
+```
+
+**Access URLs:**
+- **Main Application:** [http://localhost:3000](http://localhost:3000)
+- **Backend API:** [http://localhost:8000](http://localhost:8000)
+- **API Documentation:** [http://localhost:8000/docs](http://localhost:8000/docs)
+
+> 📋 **Detailed Setup Instructions:** See [LOCALHOST_SETUP.md](./LOCALHOST_SETUP.md) for comprehensive setup guide.
+
 ## Local Development
 
 ### Prerequisites
 
-- Node.js 18+ and pnpm
-- Python 3.8+
+- **Python 3.12+** - [Download here](https://www.python.org/downloads/)
+- **Node.js 18+** - [Download here](https://nodejs.org/)
+- **npm** (comes with Node.js)
+- **Git** - [Download here](https://git-scm.com/)
 
-### Backend Setup
+### Quick Setup (Recommended)
 
-1. Navigate to the backend directory:
+1. **Clone repository:**
+   ```bash
+   git clone <repository-url>
+   cd CDC-2025-Planetary_Systems
+   ```
+
+2. **Run development script:**
+   ```bash
+   chmod +x start-dev.sh
+   ./start-dev.sh
+   ```
+
+3. **Open browser:** [http://localhost:3000](http://localhost:3000)
+
+### Manual Setup (Alternative)
+
+#### Backend Setup
+
+1. **Navigate to backend directory:**
    ```bash
    cd backend
    ```
 
-2. Create a virtual environment:
+2. **Create virtual environment:**
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. Install dependencies:
+3. **Install dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
 
-4. Copy environment file:
-   ```bash
-   cp env.example .env
-   ```
-
-5. Start the FastAPI server:
+4. **Start FastAPI server:**
    ```bash
    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
-The backend will be available at `http://localhost:8000`
+#### Frontend Setup
 
-### Frontend Setup
-
-1. Navigate to the frontend directory:
+1. **Navigate to frontend directory:**
    ```bash
    cd frontend
    ```
 
-2. Install dependencies:
+2. **Install dependencies:**
    ```bash
-   pnpm install
+   npm install
    ```
 
-3. Copy environment file:
+3. **Start development server:**
    ```bash
-   cp env.example .env.local
+   npm run dev
    ```
 
-4. Start the development server:
-   ```bash
-   pnpm dev
-   ```
+### Verification
 
-The frontend will be available at `http://localhost:3000`
+- **Backend Health:** [http://localhost:8000/health](http://localhost:8000/health)
+- **Frontend App:** [http://localhost:3000](http://localhost:3000)
+- **API Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ## API Endpoints
 
