@@ -1,18 +1,30 @@
 # Deployment Guide
 
-## Frontend (Vercel)
+## Frontend (Vercel) - FIXED! ✅
 
-### Option 1: Using Vercel Dashboard (Recommended)
+### Quick Deploy (Recommended)
 
-1. Go to [vercel.com](https://vercel.com) and sign in
-2. Click "New Project"
-3. Import your GitHub repository
-4. In Project Settings:
-   - **Root Directory**: `frontend`
-   - **Framework Preset**: `Next.js`
-   - **Build Command**: `npm run build` (or leave empty)
-   - **Output Directory**: `.next` (or leave empty)
-   - **Install Command**: `npm install` (or leave empty)
+1. **Test deployment readiness**:
+   ```bash
+   ./quick-deploy.sh
+   ```
+
+2. **Deploy to Vercel**:
+   - Go to [vercel.com](https://vercel.com) and sign in
+   - Click "New Project"
+   - Import your GitHub repository
+   - Vercel should auto-detect Next.js in the `frontend` folder
+   - If not, set **Root Directory** to `frontend` in project settings
+   - Deploy!
+
+### Manual Configuration (if needed)
+
+If Vercel doesn't auto-detect:
+- **Root Directory**: `frontend`
+- **Framework Preset**: `Next.js`
+- **Build Command**: `npm run build` (or leave empty)
+- **Output Directory**: `.next` (or leave empty)
+- **Install Command**: `npm install` (or leave empty)
 
 ### Option 2: Using Vercel CLI
 
