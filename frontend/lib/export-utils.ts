@@ -1,0 +1,372 @@
+import type { WorkoutSession, WeeklySchedule } from "./workout-calculator"
+import type { Exoplanet } from "./exoplanet-data"
+
+// PDF export utility using jsPDF
+export async function exportToPDF(
+  session: WorkoutSession,
+  weeklySchedule: WeeklySchedule,
+  planet: Exoplanet,
+  completedExercises?: number,
+  totalTime?: number,
+) {
+  // Dynamic import to avoid SSR issues
+  const { jsPDF } = await import("jspdf")
+
+  const doc = new jsPDF()
+  const pageWidth = doc.internal.pageSize.width
+  const margin = 20
+  let yPosition = margin
+
+  // Helper function to add text with automatic line wrapping
+  const addText = (text: string, x: number, y: number, options?: any) => {
+    const lines = doc.splitTextToSize(text, pageWidth - 2 * margin)
+    doc.text(lines, x, y, options)
+    return y + lines.length * 7
+  }
+
+  // Header
+  doc.setFontSize(24)
+  doc.setFont("helvetica", "bold")
+  yPosition = addText("GravityFit Exo - Workout Program", margin, yPosition)
+
+  doc.setFontSize(16)
+  doc.setFont("helvetica", "normal")
+  yPosition = addText(`Planet: ${planet.name}`, margin, yPosition + 10)
+  yPosition = addText(`Host Star: ${planet.hostStar}`, margin, yPosition + 5)
+
+  // Planet Stats
+  doc.setFontSize(14)
+  doc.setFont("helvetica", "bold")
+  yPosition = addText("Planetary Parameters", margin, yPosition + 15)
+
+  doc.setFontSize(12)
+  doc.setFont("helvetica", "normal")
+  yPosition = addText(`Surface Gravity: ${planet.gravity?.toFixed(1) || "Unknown"} m/s²`, margin, yPosition + 8)
+  yPosition = addText(`Gravity Ratio: ${session.gravityFraction.toFixed(2)}x Earth`, margin, yPosition + 5)
+  yPosition = addText(`Intensity Index: ${session.intensityIndex}/10`, margin, yPosition + 5)
+  yPosition = addText(`Session Duration: ${session.duration} minutes`, margin, yPosition + 5)
+
+  // Today's Session
+  doc.setFontSize(14)
+  doc.setFont("helvetica", "bold")
+  yPosition = addText("Today's Workout Session", margin, yPosition + 15)
+
+  doc.setFontSize(10)
+  doc.setFont("helvetica", "normal")
+
+  session.exercises.forEach((exercise, index) => {
+    if (yPosition > 250) {
+      doc.addPage()
+      yPosition = margin
+    }
+
+    yPosition = addText(`${index + 1}. ${exercise.name} (${exercise.type})`, margin, yPosition + 8)
+
+    if (exercise.type === "cardio" || exercise.type === "flexibility") {
+      yPosition = addText(`   Duration: ${exercise.scaledLoad} minutes`, margin + 10, yPosition + 5)
+    } else {
+      yPosition = addText(
+        `   Load: ${exercise.scaledLoad}kg | Sets: ${exercise.scaledSets} | Reps: ${exercise.scaledReps}`,
+        margin + 10,
+        yPosition + 5,
+      )
+      yPosition = addText(`   Device Setting: ${exercise.deviceSetPoint}kg`, margin + 10, yPosition + 5)
+    }
+  })
+
+  // Weekly Schedule
+  if (yPosition > 200) {
+    doc.addPage()
+    yPosition = margin
+  }
+
+  doc.setFontSize(14)
+  doc.setFont("helvetica", "bold")
+  yPosition = addText("7-Day Training Schedule", margin, yPosition + 15)
+
+  doc.setFontSize(10)
+  doc.setFont("helvetica", "normal")
+  yPosition = addText(`Total Weekly Volume: ${weeklySchedule.totalWeeklyVolume} minutes`, margin, yPosition + 8)
+
+  weeklySchedule.sessions.forEach((weekSession, index) => {
+    if (yPosition > 250) {
+      doc.addPage()
+      yPosition = margin
+    }
+    yPosition = addText(
+      `Day ${index + 1}: ${weekSession.duration} min | Intensity: ${weekSession.intensityIndex}/10`,
+      margin,
+      yPosition + 8,
+    )
+  })
+
+  // Safety Notes
+  if (session.safetyNotes.length > 0) {
+    if (yPosition > 200) {
+      doc.addPage()
+      yPosition = margin
+    }
+
+    doc.setFontSize(14)
+    doc.setFont("helvetica", "bold")
+    yPosition = addText("Safety Considerations", margin, yPosition + 15)
+
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    session.safetyNotes.forEach((note) => {
+      yPosition = addText(`• ${note}`, margin, yPosition + 8)
+    })
+  }
+
+  // Performance Summary (if completed)
+  if (completedExercises !== undefined && totalTime !== undefined) {
+    if (yPosition > 200) {
+      doc.addPage()
+      yPosition = margin
+    }
+
+    doc.setFontSize(14)
+    doc.setFont("helvetica", "bold")
+    yPosition = addText("Session Summary", margin, yPosition + 15)
+
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    yPosition = addText(`Exercises Completed: ${completedExercises}/${session.exercises.length}`, margin, yPosition + 8)
+    yPosition = addText(`Total Training Time: ${totalTime} minutes`, margin, yPosition + 5)
+    yPosition = addText(
+      `Completion Rate: ${((completedExercises / session.exercises.length) * 100).toFixed(0)}%`,
+      margin,
+      yPosition + 5,
+    )
+    yPosition = addText(
+      `Estimated Calories: ${Math.round(totalTime * 8 * session.gravityFraction)} kcal`,
+      margin,
+      yPosition + 5,
+    )
+  }
+
+  // Footer
+  doc.setFontSize(8)
+  doc.setFont("helvetica", "italic")
+  doc.text(
+    `Generated by GravityFit Exo on ${new Date().toLocaleDateString()}`,
+    margin,
+    doc.internal.pageSize.height - 10,
+  )
+
+  // Save the PDF
+  const fileName = `GravityFit_${planet.name.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`
+  doc.save(fileName)
+}
+
+// CSV export utility
+export function exportToCSV(
+  session: WorkoutSession,
+  weeklySchedule: WeeklySchedule,
+  planet: Exoplanet,
+  completedExercises?: number,
+  totalTime?: number,
+) {
+  const csvData: string[] = []
+
+  // Header information
+  csvData.push("GravityFit Exo - Workout Data Export")
+  csvData.push(`Export Date,${new Date().toISOString()}`)
+  csvData.push("")
+
+  // Planet information
+  csvData.push("PLANET INFORMATION")
+  csvData.push("Parameter,Value")
+  csvData.push(`Planet Name,${planet.name}`)
+  csvData.push(`Host Star,${planet.hostStar}`)
+  csvData.push(`Surface Gravity (m/s²),${planet.gravity?.toFixed(1) || "Unknown"}`)
+  csvData.push(`Gravity Ratio (vs Earth),${session.gravityFraction.toFixed(2)}`)
+  csvData.push(`Intensity Index,${session.intensityIndex}/10`)
+  csvData.push(`Discovery Year,${planet.discoveryYear}`)
+  csvData.push(`Distance (light years),${planet.distance}`)
+  csvData.push(`Temperature (K),${planet.temperature || "Unknown"}`)
+  csvData.push("")
+
+  // Today's session exercises
+  csvData.push("TODAY'S WORKOUT SESSION")
+  csvData.push("Exercise,Type,Scaled Load,Sets,Reps,Device Setting,Scaling Factor")
+
+  session.exercises.forEach((exercise) => {
+    const row = [
+      exercise.name,
+      exercise.type,
+      exercise.type === "cardio" || exercise.type === "flexibility"
+        ? `${exercise.scaledLoad} min`
+        : `${exercise.scaledLoad} kg`,
+      exercise.scaledSets || "N/A",
+      exercise.scaledReps || "N/A",
+      exercise.deviceSetPoint ? `${exercise.deviceSetPoint} kg` : "N/A",
+      `${(exercise.scalingFactor * 100).toFixed(0)}%`,
+    ]
+    csvData.push(row.join(","))
+  })
+
+  csvData.push("")
+
+  // Weekly schedule
+  csvData.push("7-DAY TRAINING SCHEDULE")
+  csvData.push("Day,Session Type,Duration (min),Intensity Index,Exercises Count,Gravity Ratio")
+
+  weeklySchedule.sessions.forEach((weekSession, index) => {
+    const sessionType = weekSession.planetName.split(" - ")[1] || "Training Session"
+    const row = [
+      `Day ${index + 1}`,
+      sessionType,
+      weekSession.duration.toString(),
+      `${weekSession.intensityIndex}/10`,
+      weekSession.exercises.length.toString(),
+      weekSession.gravityFraction.toFixed(2),
+    ]
+    csvData.push(row.join(","))
+  })
+
+  csvData.push("")
+  csvData.push(`Total Weekly Volume,${weeklySchedule.totalWeeklyVolume} minutes`)
+  csvData.push("")
+
+  // Performance data (if available)
+  if (completedExercises !== undefined && totalTime !== undefined) {
+    csvData.push("SESSION PERFORMANCE")
+    csvData.push("Metric,Value")
+    csvData.push(`Exercises Completed,${completedExercises}/${session.exercises.length}`)
+    csvData.push(`Total Training Time,${totalTime} minutes`)
+    csvData.push(`Completion Rate,${((completedExercises / session.exercises.length) * 100).toFixed(0)}%`)
+    csvData.push(`Estimated Calories,${Math.round(totalTime * 8 * session.gravityFraction)} kcal`)
+    csvData.push("")
+  }
+
+  // Safety notes
+  if (session.safetyNotes.length > 0) {
+    csvData.push("SAFETY CONSIDERATIONS")
+    session.safetyNotes.forEach((note, index) => {
+      csvData.push(`Safety Note ${index + 1},${note}`)
+    })
+    csvData.push("")
+  }
+
+  // Recovery recommendations
+  csvData.push("RECOVERY RECOMMENDATIONS")
+  weeklySchedule.recoveryRecommendations.forEach((rec, index) => {
+    csvData.push(`Recommendation ${index + 1},${rec}`)
+  })
+
+  // Create and download CSV file
+  const csvContent = csvData.join("\n")
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+  const link = document.createElement("a")
+
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
+    link.setAttribute(
+      "download",
+      `GravityFit_${planet.name.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.csv`,
+    )
+    link.style.visibility = "hidden"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+}
+
+// Share functionality
+export async function shareWorkout(
+  session: WorkoutSession,
+  planet: Exoplanet,
+  completedExercises?: number,
+  totalTime?: number,
+) {
+  const shareText = `🚀 Just completed a GravityFit Exo workout on ${planet.name}!
+
+🌍 Planet: ${planet.name} (${session.gravityFraction.toFixed(2)}x Earth gravity)
+⚡ Intensity: ${session.intensityIndex}/10
+${completedExercises ? `✅ Completed: ${completedExercises}/${session.exercises.length} exercises` : ""}
+${totalTime ? `⏱️ Training Time: ${totalTime} minutes` : ""}
+
+Gravity-optimized fitness training using NASA's Exoplanet Archive! 💪
+
+#GravityFitExo #ExoplanetFitness #SpaceFitness`
+
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: "GravityFit Exo Workout",
+        text: shareText,
+        url: window.location.href,
+      })
+    } catch (error) {
+      console.log("Error sharing:", error)
+      fallbackShare(shareText)
+    }
+  } else {
+    fallbackShare(shareText)
+  }
+}
+
+function fallbackShare(text: string) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Workout summary copied to clipboard!")
+    })
+  } else {
+    // Fallback for older browsers
+    const textArea = document.createElement("textarea")
+    textArea.value = text
+    document.body.appendChild(textArea)
+    textArea.select()
+    document.execCommand("copy")
+    document.body.removeChild(textArea)
+    alert("Workout summary copied to clipboard!")
+  }
+}
+
+// Device settings export for gym equipment
+export function exportDeviceSettings(session: WorkoutSession, planet: Exoplanet) {
+  const deviceData: string[] = []
+
+  deviceData.push("GRAVITYFIT EXO - DEVICE SETTINGS")
+  deviceData.push(`Planet: ${planet.name}`)
+  deviceData.push(`Gravity Ratio: ${session.gravityFraction.toFixed(2)}x Earth`)
+  deviceData.push(`Session Date: ${new Date().toLocaleDateString()}`)
+  deviceData.push("")
+
+  deviceData.push("EQUIPMENT SETTINGS")
+  deviceData.push("Exercise,Equipment Type,Setting (kg),Safety Cap (kg)")
+
+  session.exercises
+    .filter((ex) => ex.deviceSetPoint)
+    .forEach((exercise) => {
+      const equipmentType = exercise.type === "strength" ? "Resistance Machine" : "Cardio Equipment"
+      const safetyCap = Math.min(exercise.deviceSetPoint! * 1.2, exercise.deviceSetPoint! + 20)
+
+      deviceData.push(`${exercise.name},${equipmentType},${exercise.deviceSetPoint},${safetyCap.toFixed(0)}`)
+    })
+
+  deviceData.push("")
+  deviceData.push("SAFETY LIMITS")
+  deviceData.push(`Max Load Multiplier: ${Math.min(session.gravityFraction * 1.2, 3.0).toFixed(2)}x`)
+  deviceData.push(`Heart Rate Limit: ${Math.round(180 - (session.gravityFraction > 1.5 ? 20 : 0))} BPM`)
+  deviceData.push(`Session Duration Cap: ${Math.min(session.duration * 1.5, 90)} minutes`)
+
+  const csvContent = deviceData.join("\n")
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+  const link = document.createElement("a")
+
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
+    link.setAttribute(
+      "download",
+      `GravityFit_DeviceSettings_${planet.name.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.csv`,
+    )
+    link.style.visibility = "hidden"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+}
