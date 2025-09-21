@@ -33,7 +33,7 @@ class ExoplanetStatsResponse(BaseModel):
 @router.get("/exoplanets", response_model=ExoplanetSearchResponse)
 async def search_exoplanets(
     q: str = Query("", description="Search query for planet name or host star"),
-    limit: int = Query(50, ge=1, le=500, description="Maximum number of results")
+    limit: int = Query(200, ge=1, le=500, description="Maximum number of results")
 ):
     """Search exoplanets by name or host star."""
     try:
@@ -61,7 +61,7 @@ async def get_exoplanet_stats():
         raise HTTPException(status_code=500, detail=f"Error getting stats: {str(e)}")
 
 @router.get("/exoplanets/random", response_model=List[Exoplanet])
-async def get_random_exoplanets(limit: int = Query(5, ge=1, le=500)):
+async def get_random_exoplanets(limit: int = Query(200, ge=1, le=500)):
     """Get random exoplanets from the dataset."""
     try:
         data_loader = get_data_loader()

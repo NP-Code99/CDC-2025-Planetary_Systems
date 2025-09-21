@@ -110,7 +110,7 @@ class ExoplanetDataLoader:
                     record[key] = None
         return records
     
-    def get_all_exoplanets(self, limit: int = 100) -> List[Dict]:
+    def get_all_exoplanets(self, limit: int = 200) -> List[Dict]:
         """Get all exoplanets with optional limit."""
         results = self.df.head(limit)
         records = results.to_dict('records')

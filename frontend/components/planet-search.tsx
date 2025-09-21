@@ -32,14 +32,45 @@ export function PlanetSearch() {
         console.log('Loading initial planets...')
         setLoading(true)
         setError(null)
-        const [randomPlanets, exoplanetStats] = await Promise.all([
-          getRandomExoplanets(200), // Load 200 planets
-          getExoplanetStats()
+        
+        // Direct API calls instead of using the service
+        const [planetsResponse, statsResponse] = await Promise.all([
+          fetch('http://localhost:8000/exoplanets/random?limit=200'),
+          fetch('http://localhost:8000/exoplanets/stats')
         ])
-        console.log('Loaded planets:', randomPlanets.length, randomPlanets)
-        setPlanets(randomPlanets)
-        setStats(exoplanetStats)
-        console.log('Planets state updated:', randomPlanets.length)
+        
+        if (!planetsResponse.ok) {
+          throw new Error(`Planets API error: ${planetsResponse.status}`)
+        }
+        if (!statsResponse.ok) {
+          throw new Error(`Stats API error: ${statsResponse.status}`)
+        }
+        
+        const planetsData = await planetsResponse.json()
+        const statsData = await statsResponse.json()
+        
+        console.log('Loaded planets:', planetsData.length, planetsData)
+        console.log('Loaded stats:', statsData)
+        
+        // Convert API data to frontend format
+        const convertedPlanets = planetsData.map((planet: any) => ({
+          id: planet.pl_name.toLowerCase().replace(/\s+/g, '-'),
+          name: planet.pl_name,
+          hostStar: planet.hostname,
+          mass: planet.pl_bmasse,
+          radius: planet.pl_rade,
+          gravity: planet.g_fraction * 9.81, // Convert to m/s²
+          distance: planet.sy_dist ? planet.sy_dist * 3.26 : 0, // Convert parsecs to light years
+          discoveryYear: 2020, // Default since not in CSV
+          temperature: planet.pl_eqt,
+          orbitalPeriod: planet.pl_orbper,
+          g_fraction: planet.g_fraction,
+          intensity_index: planet.intensity_index,
+        }))
+        
+        setPlanets(convertedPlanets)
+        setStats(statsData)
+        console.log('Planets state updated:', convertedPlanets.length)
       } catch (err) {
         console.error('Error loading exoplanets:', err)
         setError('Failed to load exoplanets')
@@ -58,8 +89,26 @@ export function PlanetSearch() {
       if (!searchQuery.trim()) {
         // Load random planets when no search query
         try {
-          const randomPlanets = await getRandomExoplanets(200) // Load 200 planets
-          setPlanets(randomPlanets)
+          const response = await fetch('http://localhost:8000/exoplanets/random?limit=200')
+          if (!response.ok) throw new Error(`API error: ${response.status}`)
+          const planetsData = await response.json()
+          
+          const convertedPlanets = planetsData.map((planet: any) => ({
+            id: planet.pl_name.toLowerCase().replace(/\s+/g, '-'),
+            name: planet.pl_name,
+            hostStar: planet.hostname,
+            mass: planet.pl_bmasse,
+            radius: planet.pl_rade,
+            gravity: planet.g_fraction * 9.81,
+            distance: planet.sy_dist ? planet.sy_dist * 3.26 : 0,
+            discoveryYear: 2020,
+            temperature: planet.pl_eqt,
+            orbitalPeriod: planet.pl_orbper,
+            g_fraction: planet.g_fraction,
+            intensity_index: planet.intensity_index,
+          }))
+          
+          setPlanets(convertedPlanets)
         } catch (err) {
           console.error('Error loading random planets:', err)
         }
@@ -68,8 +117,26 @@ export function PlanetSearch() {
 
       try {
         setLoading(true)
-        const searchResults = await searchExoplanetsAPI(searchQuery)
-        setPlanets(searchResults)
+        const response = await fetch(`http://localhost:8000/exoplanets?q=${encodeURIComponent(searchQuery)}&limit=200`)
+        if (!response.ok) throw new Error(`Search API error: ${response.status}`)
+        const searchData = await response.json()
+        
+        const convertedPlanets = searchData.exoplanets.map((planet: any) => ({
+          id: planet.pl_name.toLowerCase().replace(/\s+/g, '-'),
+          name: planet.pl_name,
+          hostStar: planet.hostname,
+          mass: planet.pl_bmasse,
+          radius: planet.pl_rade,
+          gravity: planet.g_fraction * 9.81,
+          distance: planet.sy_dist ? planet.sy_dist * 3.26 : 0,
+          discoveryYear: 2020,
+          temperature: planet.pl_eqt,
+          orbitalPeriod: planet.pl_orbper,
+          g_fraction: planet.g_fraction,
+          intensity_index: planet.intensity_index,
+        }))
+        
+        setPlanets(convertedPlanets)
       } catch (err) {
         setError('Failed to search exoplanets')
         console.error('Error searching exoplanets:', err)

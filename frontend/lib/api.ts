@@ -2,7 +2,7 @@
  * Typed API client for GravityFit Exo backend
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+const API_BASE = 'http://localhost:8000'
 
 // Types matching the backend API
 export interface PredictRequest {
