@@ -13,7 +13,8 @@ import {
   getIntensityTier,
   type Exoplanet,
 } from "@/lib/exoplanet-data"
-import { searchExoplanets as searchExoplanetsAPI, getRandomExoplanets } from "@/lib/exoplanet-service"
+import { searchExoplanets as searchExoplanetsAPI, getRandomExoplanets, getExoplanetStats } from "@/lib/exoplanet-service"
+import { ExoplanetStatsResponse } from "@/lib/api"
 
 export function PlanetSearch() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -22,17 +23,22 @@ export function PlanetSearch() {
   const [planets, setPlanets] = useState<Exoplanet[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [stats, setStats] = useState<ExoplanetStatsResponse | null>(null)
 
-  // Load initial random planets
+  // Load initial random planets and stats
   useEffect(() => {
-    const loadInitialPlanets = async () => {
+    const loadInitialData = async () => {
       try {
         console.log('Loading initial planets...')
         setLoading(true)
         setError(null)
-        const randomPlanets = await getRandomExoplanets(100)
+        const [randomPlanets, exoplanetStats] = await Promise.all([
+          getRandomExoplanets(200), // Load 200 planets
+          getExoplanetStats()
+        ])
         console.log('Loaded planets:', randomPlanets.length, randomPlanets)
         setPlanets(randomPlanets)
+        setStats(exoplanetStats)
         console.log('Planets state updated:', randomPlanets.length)
       } catch (err) {
         console.error('Error loading exoplanets:', err)
@@ -43,22 +49,22 @@ export function PlanetSearch() {
       }
     }
 
-    loadInitialPlanets()
+    loadInitialData()
   }, [])
 
   // Search planets when query changes
   useEffect(() => {
     const searchPlanets = async () => {
-        if (!searchQuery.trim()) {
-          // Load random planets when no search query
-          try {
-            const randomPlanets = await getRandomExoplanets(100)
-            setPlanets(randomPlanets)
-          } catch (err) {
-            console.error('Error loading random planets:', err)
-          }
-          return
+      if (!searchQuery.trim()) {
+        // Load random planets when no search query
+        try {
+          const randomPlanets = await getRandomExoplanets(200) // Load 200 planets
+          setPlanets(randomPlanets)
+        } catch (err) {
+          console.error('Error loading random planets:', err)
         }
+        return
+      }
 
       try {
         setLoading(true)
@@ -134,126 +140,128 @@ export function PlanetSearch() {
 
       {/* Planet Results Grid */}
       {!loading && !error && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {planets.map((planet) => {
-            // Use real data if available, fallback to calculated values
-            const gravityFraction = planet.g_fraction ?? (planet.gravity ? calculateGravityFraction(planet.gravity) : 1)
-            const intensityIndex = planet.intensity_index ?? calculateIntensityIndex(gravityFraction)
-            const intensityTier = getIntensityTier(intensityIndex)
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {planets.map((planet) => {
+              // Use real data if available, fallback to calculated values
+              const gravityFraction = planet.g_fraction ?? (planet.gravity ? calculateGravityFraction(planet.gravity) : 1)
+              const intensityIndex = planet.intensity_index ?? calculateIntensityIndex(gravityFraction)
+              const intensityTier = getIntensityTier(intensityIndex)
 
-            return (
-              <Card
-                key={planet.id}
-                className={`cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-2 ${
-                  selectedPlanet?.id === planet.id
-                    ? "border-primary shadow-primary/20 shadow-lg animate-pulse-glow"
-                    : "border-border hover:border-primary/50"
-                } bg-card/80 backdrop-blur-sm`}
-                onClick={() => handlePlanetSelect(planet)}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <CardTitle className="text-lg text-balance">{planet.name}</CardTitle>
-                      <CardDescription className="text-sm">
-                        <Globe className="inline h-3 w-3 mr-1" />
-                        {planet.hostStar}
-                      </CardDescription>
+              return (
+                <Card
+                  key={planet.id}
+                  className={`cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-2 ${
+                    selectedPlanet?.id === planet.id
+                      ? "border-primary shadow-primary/20 shadow-lg animate-pulse-glow"
+                      : "border-border hover:border-primary/50"
+                  } bg-card/80 backdrop-blur-sm`}
+                  onClick={() => handlePlanetSelect(planet)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <CardTitle className="text-lg text-balance">{planet.name}</CardTitle>
+                        <CardDescription className="text-sm">
+                          <Globe className="inline h-3 w-3 mr-1" />
+                          {planet.hostStar}
+                        </CardDescription>
+                      </div>
+                      <Badge
+                        variant={
+                          intensityTier === "low" ? "secondary" : intensityTier === "medium" ? "default" : "destructive"
+                        }
+                        className="animate-float"
+                      >
+                        <Zap className="h-3 w-3 mr-1" />
+                        {intensityIndex}/10
+                      </Badge>
                     </div>
-                    <Badge
-                      variant={
-                        intensityTier === "low" ? "secondary" : intensityTier === "medium" ? "default" : "destructive"
-                      }
-                      className="animate-float"
-                    >
-                      <Zap className="h-3 w-3 mr-1" />
-                      {intensityIndex}/10
-                    </Badge>
-                  </div>
-                </CardHeader>
+                  </CardHeader>
 
-                <CardContent className="space-y-4">
-                  {/* Gravity Info */}
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Gravity:</span>
-                    <span className="font-mono font-medium">
-                      {planet.gravity ? `${planet.gravity.toFixed(1)} m/s²` : "Unknown"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">vs Earth:</span>
-                    <span className="font-mono font-medium text-primary">
-                      {gravityFraction.toFixed(2)}x
-                    </span>
-                  </div>
-
-                  {/* Additional Info */}
-                  <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      <span>{planet.discoveryYear}</span>
+                  <CardContent className="space-y-4">
+                    {/* Gravity Info */}
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Gravity:</span>
+                      <span className="font-mono font-medium">
+                        {planet.gravity ? `${planet.gravity.toFixed(1)} m/s²` : "Unknown"}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Thermometer className="h-3 w-3" />
-                      <span>{planet.temperature ? `${planet.temperature}K` : "Unknown"}</span>
+
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">vs Earth:</span>
+                      <span className="font-mono font-medium text-primary">
+                        {gravityFraction.toFixed(2)}x
+                      </span>
                     </div>
-                  </div>
 
-                  <div className="text-xs text-muted-foreground">Distance: {planet.distance} light years</div>
+                    {/* Additional Info */}
+                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        <span>{planet.discoveryYear ?? 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Thermometer className="h-3 w-3" />
+                        <span>{planet.temperature ? `${planet.temperature}K` : "Unknown"}</span>
+                      </div>
+                    </div>
 
-                  {selectedPlanet?.id === planet.id && (
-                    <Button className="w-full mt-4" size="sm" onClick={handleGenerateWorkout}>
-                      Generate Workout Program
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      )}
+                    <div className="text-xs text-muted-foreground">Distance: {planet.distance ? `${planet.distance.toFixed(2)} ly` : 'Unknown'}</div>
 
-      {!loading && !error && planets.length === 0 && searchQuery && (
-        <div className="text-center py-12">
-          <Globe className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-          <h3 className="text-lg font-medium text-muted-foreground mb-2">No planets found</h3>
-          <p className="text-sm text-muted-foreground">Try searching for different planet names or host stars</p>
-        </div>
-      )}
-
-      {/* Quick Stats */}
-      {!loading && !error && (
-        <div className="bg-card/30 backdrop-blur-sm rounded-lg p-6 border border-border/50">
-          <h3 className="text-lg font-semibold mb-4 text-center">NASA Exoplanet Database Stats</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-primary">{planets.length}</div>
-              <div className="text-sm text-muted-foreground">Planets Loaded</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-accent">
-                {planets.filter((p) => (p.intensity_index ?? 5) <= 3).length}
-              </div>
-              <div className="text-sm text-muted-foreground">Low Intensity</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-chart-3">
-                {planets.filter((p) => {
-                  const intensity = p.intensity_index ?? 5
-                  return intensity >= 4 && intensity <= 7
-                }).length}
-              </div>
-              <div className="text-sm text-muted-foreground">Medium Intensity</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-destructive">
-                {planets.filter((p) => (p.intensity_index ?? 5) >= 8).length}
-              </div>
-              <div className="text-sm text-muted-foreground">High Intensity</div>
-            </div>
+                    {selectedPlanet?.id === planet.id && (
+                      <Button className="w-full mt-4" size="sm" onClick={handleGenerateWorkout}>
+                        Generate Workout Program
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
-        </div>
+
+          {planets.length === 0 && searchQuery && (
+            <div className="text-center py-12">
+              <Globe className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <h3 className="text-lg font-medium text-muted-foreground mb-2">No planets found</h3>
+              <p className="text-sm text-muted-foreground">Try searching for different planet names or host stars</p>
+            </div>
+          )}
+
+          {/* Quick Stats */}
+          {stats && (
+            <div className="bg-card/30 backdrop-blur-sm rounded-lg p-6 border border-border/50">
+              <h3 className="text-lg font-semibold mb-4 text-center">NASA Exoplanet Database Stats</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-primary">{stats.total_planets}</div>
+                  <div className="text-sm text-muted-foreground">Total Planets</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-accent">
+                    {Object.entries(stats.intensity_index_distribution).filter(([index, _]) => parseInt(index) <= 3).reduce((sum, [_, count]) => sum + count, 0)}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Low Intensity</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-chart-3">
+                    {Object.entries(stats.intensity_index_distribution).filter(([index, _]) => {
+                      const intensity = parseInt(index)
+                      return intensity >= 4 && intensity <= 7
+                    }).reduce((sum, [_, count]) => sum + count, 0)}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Medium Intensity</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-destructive">
+                    {Object.entries(stats.intensity_index_distribution).filter(([index, _]) => parseInt(index) >= 8).reduce((sum, [_, count]) => sum + count, 0)}
+                  </div>
+                  <div className="text-sm text-muted-foreground">High Intensity</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

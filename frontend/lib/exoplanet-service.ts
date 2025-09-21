@@ -22,9 +22,9 @@ export function convertApiExoplanet(apiPlanet: ApiExoplanet): Exoplanet {
   }
 }
 
-export async function searchExoplanets(query: string): Promise<Exoplanet[]> {
+export async function searchExoplanets(query: string, limit: number = 200): Promise<Exoplanet[]> {
   try {
-    const response = await api.searchExoplanets(query, 100)
+    const response = await api.searchExoplanets(query, limit)
     return response.exoplanets.map(convertApiExoplanet)
   } catch (error) {
     console.error('Failed to search exoplanets:', error)
@@ -42,7 +42,7 @@ export async function getExoplanet(planetName: string): Promise<Exoplanet | null
   }
 }
 
-export async function getRandomExoplanets(limit: number = 5): Promise<Exoplanet[]> {
+export async function getRandomExoplanets(limit: number = 200): Promise<Exoplanet[]> {
   try {
     console.log('Fetching random exoplanets from API...')
     const apiPlanets = await api.getRandomExoplanets(limit)
@@ -51,5 +51,14 @@ export async function getRandomExoplanets(limit: number = 5): Promise<Exoplanet[
   } catch (error) {
     console.error('Failed to get random exoplanets:', error)
     return []
+  }
+}
+
+export async function getExoplanetStats() {
+  try {
+    return await api.getExoplanetStats()
+  } catch (error) {
+    console.error('Failed to get exoplanet stats:', error)
+    return null
   }
 }
